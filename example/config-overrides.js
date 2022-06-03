@@ -1,5 +1,5 @@
 const path = require('path');
-const DepAnalysisPlugin = require('../webpack-plugin/index');
+const DepAnalysisPlugin = require('../index');
 module.exports = function override(config, env) {
  
   config.mode = 'development';
