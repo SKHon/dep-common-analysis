@@ -2,6 +2,8 @@
 const _ = require('lodash');
 const fs = require('fs');
 const path = require('path');
+const debug = require('debug');
+
 const { checkFile, BFSTravel, getChangeFiles, BFSTravelGetAllFiles } = require('./util').default;
 
 module.exports = class DemoPlugin {
@@ -55,18 +57,19 @@ module.exports = class DemoPlugin {
       })
       // 获取路由文件配置
       const routerConfig = require(depConfigPath).default;
-      // console.log(routerConfig);
-			// console.log(this.dependenciesTree);
-
+      debug('plugin-routerConfig:')(routerConfig);
+      debug('plugin-dependenciesTree:')(this.dependenciesTree);
+      
+      // 路由和对应文件的映射
       const pageMap = {};
       routerConfig.forEach(item => {
         const { entry } = item;
-        console.log(entry);
         const curNode = BFSTravel(this.dependenciesTree, entry);
         const files = BFSTravelGetAllFiles(curNode);
         pageMap[item.page] = files;
       })
 
+      debug('plugin-pageMap:')(pageMap);
       // 获取本次修改的文件
       const changeFilesStr = await getChangeFiles(this.rootPath);
       const changeFilesArr = changeFilesStr.split(/[\s\n]/);
@@ -75,15 +78,16 @@ module.exports = class DemoPlugin {
       changeFilesArr.forEach(item => {
         
         for(let page in pageMap) {
-          const filePath = path.resolve(this.rootPath, '../../' ,item).toLowerCase()
-          if(pageMap[page].includes(filePath)) {
+          const filePath = path.resolve(this.rootPath, '../' ,item).toLowerCase();
+          debug('plugin-filePath:')(filePath);
+          if(pageMap[page].some(file => file.toLowerCase() === filePath.toLowerCase())) {
             // report+=`修改的文件：${item}, 影响到了页面：${page}\n`;
             report += `修改的文件：${item}, 影响到了页面：${page}, 请QA回归被影响到页面的相关功能\n`
            
           }
         }
       })
-
+      debug('plugin-report:')(report);
       fs.writeFileSync(path.join(this.rootPath, 'report'), report,  (err) => {
         if(err) {
           throw new Error(`write file err, ${err}`);

@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "debug": "^4.3.4",
     "lodash": "^4.17.21",
     "simple-git": "^3.7.1"
   }
