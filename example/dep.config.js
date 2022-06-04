@@ -7,5 +7,9 @@ exports.default = [
   {
     page: '页面02',
     entry: path.join(__dirname, './src/components/Page02.js')
+  },
+  {
+    page: '页面03',
+    entry: path.join(__dirname, './src/components/Page03.js')
   }
 ]

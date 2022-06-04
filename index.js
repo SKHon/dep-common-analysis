@@ -8,6 +8,7 @@ const { checkFile, BFSTravel, getChangeFiles, BFSTravelGetAllFiles } = require('
 
 module.exports = class DemoPlugin {
   constructor(options) {
+    this.dependenciesFileMap = {};
     this.dependenciesTree = {};
     this.options = options;
     this.rootPath = options.rootPath || '';
@@ -15,30 +16,30 @@ module.exports = class DemoPlugin {
   apply(compiler) {
     compiler.hooks.normalModuleFactory.tap('DepAnalysisPlugin', (nmf) => {
       nmf.hooks.afterResolve.tap('DepAnalysisPlugin', (result) => {
-          
-          const resourceResolveData = result?.createData?.resourceResolveData;
-          const curFile = resourceResolveData?.path;
-          const parentFile = resourceResolveData?.context?.issuer
-          
-          
+
+          const resourceResolveData = result.createData.resourceResolveData || {};
+          const curFile = resourceResolveData.path;
+          const parentFile = resourceResolveData.context ? resourceResolveData.context.issuer : null;
+
           // 对于合法文件进行分析
           if(curFile && checkFile(curFile)) {
+            this.dependenciesFileMap[curFile] = this.dependenciesFileMap[curFile] || [];
             // 如果有父级文件，则直接添加
             if(parentFile) {
               const curNode = BFSTravel(this.dependenciesTree, parentFile);
               if(curNode) {
                 curNode.deps.push({
                   path: curFile,
-                  deps: []
+                  deps: this.dependenciesFileMap[curFile] || []
                 })
-              } 
+              }
             } else { // 说明是根路径
               this.dependenciesTree = {
                 path: curFile,
-                deps: []
+                deps: this.dependenciesFileMap[curFile]
               }
             }
-          } 
+          }
         }
       )
     });
@@ -49,7 +50,7 @@ module.exports = class DemoPlugin {
         throw new Error("DepAnalysisPlugin need rootPath config file");
       }
       const depConfigPath = path.join(this.rootPath, 'dep.config.js')
-      
+
       fs.existsSync(depConfigPath, status => {
         if(!status) {
           throw new Error("need dep.config.js file");
@@ -59,31 +60,31 @@ module.exports = class DemoPlugin {
       const routerConfig = require(depConfigPath).default;
       debug('plugin-routerConfig:')(routerConfig);
       debug('plugin-dependenciesTree:')(this.dependenciesTree);
-      
       // 路由和对应文件的映射
       const pageMap = {};
       routerConfig.forEach(item => {
-        const { entry } = item;
+        const { entry, page } = item;
         const curNode = BFSTravel(this.dependenciesTree, entry);
-        const files = BFSTravelGetAllFiles(curNode);
-        pageMap[item.page] = files;
+        pageMap[page] = BFSTravelGetAllFiles(curNode);
       })
 
       debug('plugin-pageMap:')(pageMap);
       // 获取本次修改的文件
       const changeFilesStr = await getChangeFiles(this.rootPath);
+      const stagedFilesStr = await getChangeFiles(this.rootPath, true);
       const changeFilesArr = changeFilesStr.split(/[\s\n]/);
+      const stagedFilesArr = stagedFilesStr.split(/[\s\n]/);
+      const changedArr = new Set([...changeFilesArr, ...stagedFilesArr].filter(Boolean));
 
       let report = '';
-      changeFilesArr.forEach(item => {
-        
+      changedArr.forEach(item => {
         for(let page in pageMap) {
           const filePath = path.resolve(this.rootPath, '../' ,item).toLowerCase();
           debug('plugin-filePath:')(filePath);
           if(pageMap[page].some(file => file.toLowerCase() === filePath.toLowerCase())) {
             // report+=`修改的文件：${item}, 影响到了页面：${page}\n`;
             report += `修改的文件：${item}, 影响到了页面：${page}, 请QA回归被影响到页面的相关功能\n`
-           
+
           }
         }
       })
@@ -93,7 +94,7 @@ module.exports = class DemoPlugin {
           throw new Error(`write file err, ${err}`);
         }
       })
-		});
-   
-  } 
+    });
+
+  }
 }
