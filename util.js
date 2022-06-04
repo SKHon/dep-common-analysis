@@ -16,7 +16,7 @@ const BFSTravel = (root, parentPath) => {
   while (queue.length) {
     const curNode = queue.shift();
     const { path = '', deps = [] } = curNode
-    
+
     if( path === parentPath ) {
       return curNode;
     }
@@ -28,7 +28,7 @@ const BFSTravel = (root, parentPath) => {
     }
   }
   return false;
- 
+
 }
 
 const BFSTravelGetAllFiles = (root) => {
@@ -51,10 +51,11 @@ const BFSTravelGetAllFiles = (root) => {
 }
 
 // 获取当前修改的文件列表
-const getChangeFiles = async (root) => {
+const getChangeFiles = async (root, isStaged) => {
   const git = simpleGit();
-  const changeFiles = await git.diff(['--name-only', root]);
-  return changeFiles;
+  const args = ['--name-only', root];
+  isStaged && args.unshift('--staged');
+  return await git.diff(args);
 }
 
 
